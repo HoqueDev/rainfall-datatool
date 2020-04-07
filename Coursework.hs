@@ -1,7 +1,14 @@
+--
+-- MATHFUN
 -- UP918631
+--
 
 import Data.List
 import System.IO
+
+--
+-- Types (define Place type here)
+--
 
 type Place = (String, (Float, Float), [Int])
 testData :: [Place]
@@ -33,7 +40,7 @@ displayNames nameList = [name | (name, _, _) <- nameList ]
 
 ----------------------------------------- Task 2------------------------------------------------
 
--- -- Use: > returnAverage testData "London"
+-- Use: > returnAverage testData "London"
 
 
 returnAverage :: [Place] -> String -> Float
@@ -130,5 +137,35 @@ distanceToTwo from to1@(_,location1,_) to2@(_,location2,_)
 closestDry :: (Float, Float) -> [Place] -> Place
 closestDry loc ps = foldr1 (distanceToTwo loc) [place | place@(_,_,rainfall) <- ps, rainfall !! 0 == 0]
 
+
+------------------------------------- Rainfall Map -------------------------------------------------
+
+type ScreenPosition = (Int,Int)
+
+-- Clears the screen
+clearScreen :: IO ()
+clearScreen = putStr "\ESC[2J"
+
+-- Moves to a position on the screen
+goTo :: ScreenPosition -> IO ()
+goTo (x, y) = putStr ("\ESC[" ++ show y ++ ";" ++ show x ++ "H")
+
+-- Writes a string at a position on the screen
+writeAt :: ScreenPosition -> String -> IO ()
+writeAt position text = do
+    goTo position
+    putStr text
+ 
+
+--
+-- Your rainfall map code goes here
+--
+
+
+
+--
+-- Your user interface (and loading/saving) code goes here
+--
+ 
 
 
