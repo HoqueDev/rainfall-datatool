@@ -112,7 +112,7 @@ updateAllRainfall placeList newRainfall = [(name,coords,newRain:init(previousRai
 
 --------------------------------------- Task 6 -----------------------------------------------------
 
--- Usage: > updateList testData ("Portsmouth", (50.8, -1.1), [0, 0, 3, 2, 5, 2, 1]) ("Plymouth", (50.4, -4.1), [4,9,0,0,0,6,5]))
+-- Usage: > updateList testData ("Portsmouth", (50.8, -1.1), [0,0,3,2,5,2,1]) ("Plymouth", (50.4, -4.1), [4,9,0,0,0,6,5]))
 
 
 updateList :: [Place] -> Place -> Place -> [Place]
@@ -142,7 +142,7 @@ closestDry coordinates testData = foldr1 (calculateDistance coordinates) [locati
 
 ------------------------------------- Rainfall Map -------------------------------------------------
 
--- Usage: > plotMap
+-- Usage: > plotMap(testData)
 
 type ScreenPosition = (Integer ,Integer)
 
@@ -179,9 +179,10 @@ menu fileData = do
       choice <- getLine
       case validate fileData choice of
          Just n  -> execute fileData . read $ choice 
-         Nothing -> putStrLn "Please enter a valid input"
+         Nothing -> do 
+                     putStrLn "Please enter a valid input..."
+                     main
 
-      main
    where concatNums (i, (s, _)) = show i ++ ".) " ++ s
 
 validate :: [Place] ->  String -> Maybe Int
@@ -208,6 +209,7 @@ choices fileData = zip [1.. ] [
 
 choice1(fileData) = do     
                  print(displayNames fileData) 
+                 menu(fileData)
                                  
 choice2(fileData) = do
                  putStrLn("Enter a city name i.e. London: ")
@@ -222,47 +224,48 @@ choice2(fileData) = do
                                 
 choice3(fileData) = do
                  putStrLn(placesToString fileData)
+                 menu(fileData)
                                 
 choice4(fileData) = do            
-                putStrLn("Enter no. of days ago: ")
-                days <- getLine
-                result <- try (print(dryDays fileData (read days))) :: IO (Either SomeException ())
-                case result of
+                 putStrLn("Enter no. of days ago: ")
+                 days <- getLine
+                 result <- try (print(dryDays fileData (read days))) :: IO (Either SomeException ())
+                 case result of
                     Left _  -> do
                                 choice4(fileData)
                     Right _ -> do
                                 menu(fileData)                                     
             
 choice5(fileData) = do
-                 putStrLn("Enter new 14 rainfall figures i.e [1,..,14]")
+                 putStrLn("Enter new 14 rainfall figures i.e [1,..,14]: ")
                  newData <- getLine
                  result <- try (print(updateAllRainfall fileData (read newData))) :: IO (Either SomeException ())
                  case result of
                     Left _  -> do
                                 choice5(fileData)
                     Right _ -> do
-                                menu (updateAllRainfall fileData (read newData)) 
+                                menu(updateAllRainfall fileData (read newData)) 
    
 choice6(fileData) = do
-                 putStrLn("Enter Place data for your new location")     
-                 input <- getLine
-                 let newPlace = (read input :: Place)
+                 putStrLn("Enter Place data for your new location: ")     
+                 inputOld <- getLine
+                 let newPlace = (read inputOld :: Place)
 
-                 putStrLn("Enter Place data for your old location")
-                 input <- getLine
-                 let oldPlace = (read input :: Place)
+                 putStrLn("Enter Place data for your old location: ")
+                 inputNew <- getLine
+                 let oldPlace = (read inputNew :: Place)
 
                  result <- try (print(updateList fileData newPlace oldPlace)) :: IO (Either SomeException ())
                  case result of
                     Left _  -> do
                                 putStrLn "Format entered is incorrect..."
-                                putStrLn "Should follow (name, coordinates, []) with parenthesis around the name."
+                                putStrLn "Should follow (name, (n,e), []) with parenthesis around the name."
                                 choice6(fileData)
                     Right _ -> do
-                                menu(fileData) 
+                                menu(updateList fileData newPlace oldPlace)
  
 choice7(fileData) = do
-                 putStrLn("Enter coordinates to find closest dry place i.e. (54.6, -5.9)")
+                 putStrLn("Enter coordinates to find closest dry place i.e. (54.6, -5.9): ")
                  input <- getLine
                  let coordinates = (read input :: (Float,Float))
                  result <- try (print(closestDry coordinates fileData)) :: IO (Either SomeException ())
@@ -272,18 +275,18 @@ choice7(fileData) = do
                     Right _ -> do
                                 menu(fileData) 
 
-
 choiceMap(fileData) = do
                  plotMap(fileData)
+                 menu(fileData)
+
 exitApp(fileData) = do 
-                 result <- try (writeFile "places.txt" (read fileData)) :: IO (Either SomeException ())
+                 result <- try (writeFile "places.txt" (show fileData)) :: IO (Either SomeException ())
                  case result of
                     Left _  -> do
-                                putStrLn("Unable to save file, try again...")
+                                putStrLn("Unable to save file, try again...:")
                                 menu(fileData) 
                     Right _ -> do
-                                exitWith $ ExitFailure 3
-                                putStrLn "!"
+                                exitSuccess
 
 execute :: [Place] -> Int -> IO ()
 execute fileData n = doExec $ filter (\(i, _) -> i == n) (choices fileData)    
