@@ -10,6 +10,7 @@ import System.Exit
 import Control.Exception
 import System.Timeout
 import Control.Concurrent
+import Text.Read
 
 
 --
@@ -102,12 +103,14 @@ dryDays places daysAgo = [place | (place, coords, rainfallData) <- places, rainf
                                  
 --------------------------------------- Task 5 ----------------------------------------------------
 
+
 -- Usage: > updateAllRainfall testData [22,14,0,52,25,11,9,11,12,22,12,12,7,2]
 
          
 updateAllRainfall :: [Place] -> [Int] -> [Place]
-updateAllRainfall placeList newRainfall = [(name,coords,newRain:init(previousRain))| ((name,coords,previousRain), newRain) <- zippedPlaceAndRain] where
-    zippedPlaceAndRain = zip placeList newRainfall                  
+updateAllRainfall placeList newRainfall = do 
+    [(name,coords,newRain:init(previousRain))| ((name,coords,previousRain), newRain) <- joinPlaceAndRain] 
+    where joinPlaceAndRain = zip placeList newRainfall                  
 
 
 --------------------------------------- Task 6 -----------------------------------------------------
@@ -119,9 +122,9 @@ updateList :: [Place] -> Place -> Place -> [Place]
 updateList places newPlace oldPlace = map (updateRecord newPlace places oldPlace) places 
 
 updateRecord :: Place -> [Place] -> Place -> Place -> Place
-updateRecord newPlace places oldPlace(name, coordinates, [a,b,c,d,e,f,g]) 
-   | (name, coordinates, [a,b,c,d,e,f,g]) == oldPlace = (newPlace)
-   | otherwise = (name, coordinates, [a,b,c,d,e,f,g])
+updateRecord newPlace places oldPlace(name, coords, [a,b,c,d,e,f,g]) 
+   | (name, coords, [a,b,c,d,e,f,g]) == oldPlace = (newPlace)
+   | otherwise = (name, coords, [a,b,c,d,e,f,g])
                                                                     
                     
 --------------------------------------- Task 7 -----------------------------------------------------
@@ -136,7 +139,7 @@ calculateDistance from toL1@(_,coordinates1,_) toL2@(_,coordinates2,_)
     | otherwise = toL1
 
 closestDry :: (Float, Float) -> [Place] -> Place
-closestDry coordinates testData = foldr1 (calculateDistance coordinates) [location | location@(_,_,rain) <- testData, (rain!!0 == 0)]
+closestDry coords testData = foldr1 (calculateDistance coords) [location | location@(_,_,rain) <- testData, (rain!!0 == 0)]
 
 
 
@@ -172,21 +175,23 @@ main = do
      fileData <- readFile "places.txt"
      print (displayNames (read fileData))
      menu (read fileData)
-
+     
 menu :: [Place] -> IO ()
 menu fileData = do
+      putStrLn "\nPick an option from below: \n"
       putStrLn . unlines $ map concatNums (choices fileData)
       choice <- getLine
-      case validate fileData choice of
+      
+      case validateOpt fileData choice of
          Just n  -> execute fileData . read $ choice 
          Nothing -> do 
                      putStrLn "Please enter a valid input..."
-                     main
+                     menu(fileData)
 
    where concatNums (i, (s, _)) = show i ++ ".) " ++ s
 
-validate :: [Place] ->  String -> Maybe Int
-validate fileData s = isValid (reads s)
+validateOpt :: [Place] ->  String -> Maybe Int
+validateOpt fileData s = isValid (reads s)
    where isValid []            = Nothing
          isValid ((n, _):_) 
                | outOfBounds n = Nothing
@@ -202,7 +207,7 @@ choices fileData = zip [1.. ] [
    ("Update rainfall figures", choice5 fileData),
    ("Replace an existing place", choice6 fileData),
    ("Show the closest dry place from a given point", choice7 fileData),
-   ("Display map", plotMap fileData),
+   ("Display map", choiceMap fileData),
    ("Exit program and save data", exitApp fileData)
  ]
 
@@ -235,17 +240,25 @@ choice4(fileData) = do
                                 choice4(fileData)
                     Right _ -> do
                                 menu(fileData)                                     
-            
+                           
 choice5(fileData) = do
+
                  putStrLn("Enter new 14 rainfall figures i.e [1,..,14]: ")
                  newData <- getLine
-                 result <- try (print(updateAllRainfall fileData (read newData))) :: IO (Either SomeException ())
-                 case result of
-                    Left _  -> do
-                                choice5(fileData)
-                    Right _ -> do
+                 
+                 case (readMaybe newData :: Maybe [Int]) of
+                      Nothing -> do
+                            putStrLn "Invalid Input, should follow format [1,..,14]: "
+                            choice5(fileData)
+                      Just n -> do
+                            let result = length n
+                            case (result == length(fileData)) of
+                              True -> do
                                 menu(updateAllRainfall fileData (read newData)) 
-   
+                              False -> do
+                                putStrLn "Invalid Input, should follow format [1,..,14]: "
+                                choice5(fileData)
+
 choice6(fileData) = do
                  putStrLn("Enter Place data for your new location: ")     
                  inputOld <- getLine
@@ -258,8 +271,8 @@ choice6(fileData) = do
                  result <- try (print(updateList fileData newPlace oldPlace)) :: IO (Either SomeException ())
                  case result of
                     Left _  -> do
-                                putStrLn "Format entered is incorrect..."
-                                putStrLn "Should follow (name, (n,e), []) with parenthesis around the name."
+                                putStrLn("Format entered is incorrect...")
+                                putStrLn("Should follow (name, (n,e), []) with parenthesis around the name.")
                                 choice6(fileData)
                     Right _ -> do
                                 menu(updateList fileData newPlace oldPlace)
@@ -267,8 +280,8 @@ choice6(fileData) = do
 choice7(fileData) = do
                  putStrLn("Enter coordinates to find closest dry place i.e. (54.6, -5.9): ")
                  input <- getLine
-                 let coordinates = (read input :: (Float,Float))
-                 result <- try (print(closestDry coordinates fileData)) :: IO (Either SomeException ())
+                 let coords = (read input :: (Float,Float))
+                 result <- try (print(closestDry coords fileData)) :: IO (Either SomeException ())
                  case result of
                     Left _  -> do
                                 choice7(fileData)
@@ -276,8 +289,8 @@ choice7(fileData) = do
                                 menu(fileData) 
 
 choiceMap(fileData) = do
-                 plotMap(fileData)
-                 menu(fileData)
+                   plotMap(fileData)
+                   menu(fileData)
 
 exitApp(fileData) = do 
                  result <- try (writeFile "places.txt" (show fileData)) :: IO (Either SomeException ())
